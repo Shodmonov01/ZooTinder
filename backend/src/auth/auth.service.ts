@@ -15,6 +15,7 @@ import {
   verifySecret,
 } from '../common/crypto';
 import { RequestOtpDto, VerifyOtpDto } from './dto/auth.dto';
+import { SmsService } from './sms.service';
 
 @Injectable()
 export class AuthService {
@@ -22,6 +23,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly sms: SmsService,
   ) {}
 
   async requestOtp(dto: RequestOtpDto) {
@@ -63,6 +65,7 @@ export class AuthService {
         message: 'OTP отправлен. В dev-режиме код всегда 111111.',
       };
     }
+    await this.sms.sendOtp(dto.phone, code);
     return { sent: true, message: 'OTP отправлен' };
   }
 
@@ -216,10 +219,20 @@ export class AuthService {
       data: {
         userId,
         tokenHash: sha256(refreshToken),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        expiresAt: this.refreshExpiresAt(),
       },
     });
     return { accessToken, refreshToken };
+  }
+
+  private refreshExpiresAt() {
+    const ttl = this.config.get('JWT_REFRESH_TTL', '30d');
+    const match = /^(\d+)([smhd])$/.exec(String(ttl));
+    const amount = match ? Number(match[1]) : 30;
+    const unit = match?.[2] ?? 'd';
+    const ms =
+      unit === 's' ? amount * 1000 : unit === 'm' ? amount * 60_000 : unit === 'h' ? amount * 3_600_000 : amount * 86_400_000;
+    return new Date(Date.now() + ms);
   }
 
   private isDev() {

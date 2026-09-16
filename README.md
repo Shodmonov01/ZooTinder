@@ -1,50 +1,42 @@
 # BreedMatch
 
-Мобильное web-приложение для ответственного поиска партнёра для вязки. Репозиторий разделён на два независимых проекта: API и клиент общаются только по HTTP.
+Мобильное web-приложение для ответственного поиска партнёра для вязки. Репозиторий: API и React-клиент.
 
 ```
 ZooTinder/
   backend/     NestJS + Prisma
-  web/         Vite + React (SPA в телефонной рамке)
+  frontend/    Vite + React
   docker-compose.yml
 ```
 
-Админка в MVP встроена в клиент для ролей `ADMIN` / `MODERATOR`.
-
-## Что уже реализовано (MVP 0.1)
-
-- OTP-вход по телефону, JWT access/refresh, logout со всех устройств
-- Профиль владельца и CRUD питомцев, фото, документы
-- Discover с hard-фильтрами и ranking score из конфигурации БД
-- Like / Pass, взаимный Match, чат, жалобы и блокировки
-- Breeding request и события календаря
-- Очередь верификации документов и модерация пользователей
-
-Не входит в этот этап: платежи, продажа животных, WebSocket, PostGIS, S3, полноценный отдельный admin-spa.
-
 ## Запуск
 
-Нужны Node.js 20+. Docker (Postgres/Redis) опционален: локально API может работать на SQLite.
+Нужны Node.js 20+. PostgreSQL — через Docker, когда демон запущен:
+
+```bash
+docker compose up -d postgres
+```
+
+Локально без Docker API работает на SQLite (`DATABASE_URL="file:./dev.db"`). `.env.example` содержит URL Postgres.
 
 ```bash
 cd backend
 copy .env.example .env
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 npx prisma db seed
 npm run start:dev
 ```
 
-API: `http://localhost:4000/api/v1`  
-Health: `http://localhost:4000/api/v1/health`
+API: `http://localhost:4000/api/v1`
 
 ```bash
-cd web
+cd frontend
 npm install
 npm run dev
 ```
 
 Клиент: `http://localhost:5173`  
-Vite проксирует `/api` и `/uploads` на `http://localhost:4000`.
+Vite проксирует `/api` на `http://localhost:4000`.
 
 В dev OTP всегда `111111`.
 
@@ -52,34 +44,14 @@ Vite проксирует `/api` и `/uploads` на `http://localhost:4000`.
 
 | Роль | Телефон | Питомец |
 | --- | --- | --- |
-| Пользователь | `+998901111111` | Лайло, алабай, ♀ |
-| Пользователь | `+998902222222` | Барс, алабай, ♂ |
+| Пользователь | `+998901111111` | Лайло |
+| Пользователь | `+998902222222` | Барс |
 | Админ | `+998900000000` | — |
 
-Чтобы получить Match, зайдите с двух номеров и поставьте взаимный Like.
+## Что умеет MVP
 
-## API
-
-Префикс `/api/v1`. Ошибки: `{ code, message, details, request_id }`.
-
-| Метод | Путь | Назначение |
-| --- | --- | --- |
-| POST | `/auth/otp/request` | Отправить OTP |
-| POST | `/auth/otp/verify` | Войти |
-| GET | `/me` | Текущий пользователь |
-| GET/POST | `/pets` | Мои животные |
-| GET | `/discover` | Выдача карточек |
-| POST | `/likes` | Like / Pass |
-| GET | `/matches` | Match |
-| GET/POST | `/chats/:id/messages` | Чат |
-| POST | `/breeding-requests` | Запрос на вязку |
-| POST | `/reports` `/blocks` | Жалоба / блок |
-| GET | `/admin/dashboard` | Админка |
-
-## Дальше по ТЗ
-
-1. Отдельный `admin/` на React
-2. Redis для OTP/rate limit, S3 для файлов
-3. WebSocket-чат
-4. PostGIS вместо haversine
-5. Локализация UZ, SMS-провайдер, политика хранения ПДн
+- OTP, профиль владельца, питомцы с фото и публикацией
+- Discover с фильтрами, свайпом и кнопками Like/Pass
+- Match, чат с опросом, жалобы и блокировки
+- Документы, очередь модерации, запрос на вязку и история
+- Медиа только по JWT, CORS allowlist, rate limit, SMS-заглушка в production

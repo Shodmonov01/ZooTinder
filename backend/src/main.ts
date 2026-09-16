@@ -11,8 +11,12 @@ async function bootstrap() {
   mkdirSync(join(process.cwd(), 'uploads'), { recursive: true });
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.setGlobalPrefix('api/v1');
+  const origins = (process.env.CORS_ORIGINS || 'http://localhost:5173')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: true,
+    origin: origins,
     credentials: true,
   });
   app.useGlobalPipes(
@@ -24,7 +28,6 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new ApiExceptionFilter());
   app.useGlobalInterceptors(new RequestIdInterceptor());
-  app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0');
 }
 bootstrap();

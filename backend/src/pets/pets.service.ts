@@ -4,13 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { BreedingStatus, Prisma, Sex } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   canPublish,
   serializePet,
 } from '../common/pet.presenter';
+import { mediaPath } from '../common/media';
 import {
   CreatePetDto,
   UpdatePetDto,
@@ -35,10 +35,7 @@ const petInclude = {
 
 @Injectable()
 export class PetsService {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly config: ConfigService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async listMine(userId: string) {
     const pets = await this.prisma.pet.findMany({
@@ -46,7 +43,10 @@ export class PetsService {
       include: petInclude,
       orderBy: { createdAt: 'desc' },
     });
-    return pets.map((pet) => serializePet(pet));
+    return pets.map((pet) => ({
+      ...serializePet(pet, {}, { includeGeo: true }),
+      searchPreference: pet.searchPreference,
+    }));
   }
 
   async getById(id: string, userId?: string) {
@@ -61,7 +61,7 @@ export class PetsService {
     if (!pet.isPublished && !isOwner) {
       throw new NotFoundException({ code: 'PET_NOT_FOUND', message: 'Питомец не найден' });
     }
-    const serialized = serializePet(pet);
+    const serialized = serializePet(pet, {}, { includeGeo: isOwner });
     if (!isOwner) {
       return serialized;
     }
@@ -129,7 +129,7 @@ export class PetsService {
 
   async addPhoto(userId: string, petId: string, filename: string) {
     const pet = await this.ensureOwner(userId, petId);
-    const publicUrl = `${this.config.get('PUBLIC_APP_URL', 'http://localhost:4000')}/uploads/${filename}`;
+    const publicUrl = mediaPath(filename);
     const photo = await this.prisma.petPhoto.create({
       data: {
         petId,

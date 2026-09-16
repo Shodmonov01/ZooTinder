@@ -7,6 +7,7 @@ import {
   VerificationStatus,
 } from '@prisma/client';
 import { ageYears } from './geo';
+import { rewriteMediaUrl } from './media';
 
 export function asStringArray(value: unknown): string[] {
   return Array.isArray(value)
@@ -92,6 +93,7 @@ export function canPublish(pet: PetWithRelations): boolean {
 export function serializePet(
   pet: PetWithRelations,
   extras: { distanceKm?: number; score?: number } = {},
+  options: { includeGeo?: boolean } = {},
 ) {
   const badges = petBadges(pet);
   return {
@@ -108,14 +110,15 @@ export function serializePet(
     temperament: asStringArray(pet.temperament),
     breedingStatus: pet.breedingStatus,
     city: pet.city,
-    latitude: pet.latitude,
-    longitude: pet.longitude,
+    ...(options.includeGeo
+      ? { latitude: pet.latitude, longitude: pet.longitude }
+      : {}),
     isPublished: pet.isPublished,
     photos: [...pet.photos]
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((photo) => ({
         id: photo.id,
-        url: photo.url,
+        url: rewriteMediaUrl(photo.url),
         sortOrder: photo.sortOrder,
       })),
     breed: pet.breed
@@ -147,6 +150,7 @@ export function serializePet(
         ? Number(extras.distanceKm.toFixed(1))
         : undefined,
     score: extras.score,
+    relevanceLabel: extras.score !== undefined ? 'релевантность' : undefined,
     availableInDiscovery:
       pet.isPublished && pet.breedingStatus !== BreedingStatus.NOT_AVAILABLE,
   };
