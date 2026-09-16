@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: breedmatch-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: breedmatch
+      POSTGRES_PASSWORD: breedmatch
+      POSTGRES_DB: breedmatch
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U breedmatch -d breedmatch']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: breedmatch-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+
+volumes:
+  pgdata:
